@@ -48,14 +48,9 @@ class ViewController: UIViewController, WKNavigationDelegate {
             decisionHandler(.cancel)
             return
         }
-        if url.host?.contains("wa.me") == true || url.host?.contains("whatsapp.com") == true {
-            if let appUrl = URL(string: "whatsapp://send?phone=" + (url.pathComponents.count > 1 ? "/" + url.pathComponents[1] : "")) {
-                if UIApplication.shared.canOpenURL(appUrl) {
-                    UIApplication.shared.open(appUrl)
-                    decisionHandler(.cancel)
-                    return
-                }
-            }
+        let host = url.host?.lowercased() ?? ""
+        let isMain = navigationAction.targetFrame?.isMainFrame ?? false
+        if isMain && (host.contains("wa.me") || host.contains("whatsapp.com")) {
             UIApplication.shared.open(url)
             decisionHandler(.cancel)
             return

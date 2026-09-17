@@ -305,6 +305,13 @@ body{font-family:'Inter',sans-serif;overscroll-behavior:none;min-height:100dvh;m
           <span class="material-symbols-outlined text-[18px] text-primary">chat</span> WhatsApp
         </button>
       </div>
+      <div class="bg-surface-container-lowest rounded-xl shadow-sm p-3 flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-on-surface flex items-center justify-between">
+          <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-primary text-[16px]">edit_note</span> Текст SMS / WhatsApp:</span>
+          <span class="text-[10px] text-on-surface-variant font-normal">Сохраняется автоматически</span>
+        </label>
+        <textarea id="smsText" class="w-full bg-surface-container-low text-on-surface rounded-lg p-2 text-sm focus:outline-none focus:bg-surface-container transition-colors resize-none" placeholder="Например: Здравствуйте! Подтвердите, пожалуйста, участие в мероприятии..." rows="2"></textarea>
+      </div>
     </div>
 
     <!-- Status Grid -->
@@ -951,14 +958,50 @@ function copyPhone() {
   navigator.clipboard.writeText(phone).then(() => showToast('Номер скопирован'));
 }
 
+function detectPlatform() {
+  const ua = navigator.userAgent;
+  if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
+  if (/android/i.test(ua)) return 'android';
+  return 'desktop';
+}
+
+function getSmsText() {
+  const el = document.getElementById('smsText');
+  return el ? el.value.trim() : '';
+}
+
+function smsUrl(phone, text) {
+  if (!text) return 'sms:' + phone;
+  const enc = encodeURIComponent(text);
+  return detectPlatform() === 'ios'
+    ? 'sms:' + phone + '&body=' + enc
+    : 'sms:' + phone + '?body=' + enc;
+}
+
 function sendSMS() {
   const phone = contacts[currentContactIndex].phone;
-  window.open('sms:' + phone, '_blank');
+  const url = smsUrl(phone, getSmsText());
+  if (detectPlatform() === 'desktop') {
+    window.open(url, '_blank');
+  } else {
+    window.location.href = url;
+  }
 }
 
 function sendWhatsApp() {
-  const phone = contacts[currentContactIndex].phone;
-  window.open('https://wa.me/' + phone.replace('+', ''), '_blank');
+  const raw = contacts[currentContactIndex].phone.replace(/\+/g, '');
+  const text = getSmsText();
+  const enc = text ? encodeURIComponent(text) : '';
+  const httpsUrl = 'https://wa.me/' + raw + (text ? '?text=' + enc : '');
+  const p = detectPlatform();
+  if (p === 'ios') {
+    window.location.href = httpsUrl;
+  } else if (p === 'android') {
+    const fb = encodeURIComponent(httpsUrl);
+    window.location.href = 'intent://wa.me/' + raw + (text ? '?text=' + enc : '') + '#Intent;scheme=https;package=com.whatsapp;S.browser_fallback_url=' + fb + ';end';
+  } else {
+    window.open(httpsUrl, '_blank');
+  }
 }
 
 function addQuickTag(tag) {
@@ -1282,6 +1325,15 @@ function loadFromStorage() {
   } catch(e) {}
 }
 
+// SMS text persistence
+const _smsTextInput = document.getElementById('smsText');
+if (_smsTextInput) {
+  _smsTextInput.value = localStorage.getItem('callmaster_sms_text') || '';
+  _smsTextInput.addEventListener('input', function() {
+    localStorage.setItem('callmaster_sms_text', this.value);
+  });
+}
+
 // Auto-save periodically
 setInterval(saveToStorage, 5000);
 
@@ -1340,8 +1392,8 @@ function showCallModal() {
   document.getElementById('modalContactName').textContent = c.fio || 'Без имени';
   document.getElementById('modalContactPhone').textContent = phone;
   document.getElementById('modalCallLink').href = 'tel:' + c.phone;
-  document.getElementById('modalSmsLink').href = 'sms:' + c.phone;
-  document.getElementById('modalWaLink').href = 'https://wa.me/' + c.phone.replace('+', '');
+  document.getElementById('modalSmsLink').href = smsUrl(c.phone, getSmsText());
+  document.getElementById('modalWaLink').href = 'https://wa.me/' + c.phone.replace('+', '') + (getSmsText() ? '?text=' + encodeURIComponent(getSmsText()) : '');
 
   modal.classList.remove('hidden');
   modal.classList.add('flex');
