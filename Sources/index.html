@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2563EB">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>CallMaster — Обзвон Мероприятий</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script>
+tailwind.config={darkMode:"class",theme:{extend:{colors:{primary:"#004ac6","primary-container":"#2563eb","on-primary":"#ffffff","surface":"#f7f9fb","on-surface":"#191c1e","on-surface-variant":"#434655","surface-container":"#eceef0","surface-container-low":"#f2f4f6","surface-container-high":"#e6e8ea","surface-container-highest":"#e0e3e5","surface-container-lowest":"#ffffff","secondary-container":"#dae2fd","on-secondary-container":"#5c647a","error":"#ba1a1a","error-container":"#ffdad6","on-error-container":"#93000a","outline":"#737686","outline-variant":"#c3c6d7"}}}}
+</script>
+<style>
+*{-webkit-tap-highlight-color:transparent}
+body{font-family:'Inter',sans-serif;overscroll-behavior:none;min-height:100dvh;margin:0;padding:0}
+::-webkit-scrollbar{display:none}
+.no-scrollbar::-webkit-scrollbar{display:none}
+.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.animate-slide-up{animation:slideUp .3s ease-out}
+.animate-fade-in{animation:fadeIn .2s ease-out}
+.status-green{background:#DCFCE7;color:#15803D}
+.status-yellow{background:#FEF9C3;color:#A16207}
+.status-red{background:#FEE2E2;color:#B91C1C}
+.status-orange{background:#FFEDD5;color:#C2410C}
+.dot-green{background:#16A34A}.dot-yellow{background:#CA8A04}.dot-red{background:#DC2626}.dot-orange{background:#EA580C}
+@media(min-width:768px){
+  main{max-width:900px}
+  .screen{padding:12px 24px!important}
+}
+@media(min-width:1024px){
+  main{max-width:1100px}
+  .screen{padding:16px 32px!important}
+}
+</style>
+</head>
+<body class="bg-surface text-on-surface">
+
+<!-- ===================== HEADER ===================== -->
+<header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+  <div class="h-14 px-4 flex items-center justify-between max-w-7xl mx-auto">
+    <div class="flex items-center gap-2 min-w-0">
+      <div class="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-white text-[18px]" style="font-variation-settings:'FILL' 1;">call</span>
+      </div>
+      <div class="flex flex-col min-w-0">
+        <span class="text-[10px] font-semibold text-primary uppercase tracking-wider truncate">Обзвон Мероприятий</span>
+        <span class="text-sm font-semibold text-on-surface truncate" id="screenTitle">Import</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-1">
+      <button onclick="showSettings()" class="w-9 h-9 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-high transition-colors">
+        <span class="material-symbols-outlined text-[20px]">tune</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== MAIN CONTENT ===================== -->
+<main class="pt-14 pb-20 min-h-screen max-w-7xl mx-auto" id="appMain">
+
+  <!-- ===== SCREEN: IMPORT ===== -->
+  <section id="screen-import" class="screen px-4 py-4 flex flex-col gap-3">
+    <!-- Campaign Card -->
+    <div class="bg-surface-container-low rounded-xl p-4 shadow-sm flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-semibold">
+          <span class="material-symbols-outlined text-[14px]">event</span> Кампания
+        </span>
+        <span class="text-xs font-semibold text-primary flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span> Готов к загрузке
+        </span>
+      </div>
+      <input id="campaignName" type="text" value="" placeholder="Название мероприятия" class="text-base font-semibold text-on-surface bg-transparent border-b border-outline-variant pb-1 focus:outline-none focus:border-primary transition-colors">
+      <p class="text-xs text-on-surface-variant">Пакетный интеллектуальный парсинг сырых номеров и ФИО участников</p>
+    </div>
+
+    <!-- Raw Contacts Input -->
+    <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <label class="text-sm font-semibold text-on-surface flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-primary text-[16px]">contacts</span> Сырые контакты
+        </label>
+        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-surface-container text-on-surface-variant" id="lineCounter">0 строк</span>
+      </div>
+      <div class="relative w-full">
+        <textarea id="rawInput" class="w-full bg-surface-container-low text-on-surface text-sm rounded-xl p-3 focus:outline-none focus:bg-surface-container transition-all resize-none shadow-inner min-h-[140px]" placeholder="Иванов Иван +79991234567&#10;8 Петр Сергеевич 9261112233&#10;Анна Смирнова 89035554433&#10;8&#10;Дмитрий 79154443322" rows="6"></textarea>
+        <button onclick="pasteFromClipboard()" class="absolute right-2 bottom-2 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest active:scale-95 text-on-surface text-xs font-semibold shadow-sm transition-all">
+          <span class="material-symbols-outlined text-[14px] text-primary">content_paste</span> Вставить
+        </button>
+      </div>
+      <label class="flex items-center gap-3 p-2 rounded-lg bg-surface hover:bg-surface-container-low transition-colors cursor-pointer select-none">
+        <input checked type="checkbox" id="optCleanSpaces" class="w-5 h-5 rounded accent-primary text-primary cursor-pointer">
+        <div class="flex flex-col min-w-0">
+          <span class="text-sm font-semibold text-on-surface">Автоматически очищать пробелы</span>
+          <span class="text-xs text-on-surface-variant">Удаляет табуляции, дефисы и лишние символы</span>
+        </div>
+      </label>
+      <label class="flex items-center gap-3 p-2 rounded-lg bg-surface hover:bg-surface-container-low transition-colors cursor-pointer select-none">
+        <input checked type="checkbox" id="optPhoneFormat" class="w-5 h-5 rounded accent-primary text-primary cursor-pointer">
+        <div class="flex flex-col min-w-0">
+          <span class="text-sm font-semibold text-on-surface">Распознавать формат +7 и 8</span>
+          <span class="text-xs text-on-surface-variant">Стандартизация телефонных кодов РФ и СНГ</span>
+        </div>
+      </label>
+    </div>
+
+    <!-- Process Button -->
+    <div class="flex flex-col gap-2">
+      <button onclick="startProcessing()" class="w-full h-14 rounded-xl bg-primary text-on-primary text-base font-semibold flex items-center justify-center gap-2 shadow-md hover:bg-primary-container active:scale-[0.98] transition-all" id="btnProcess">
+        <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">auto_awesome</span> Запустить обработку
+      </button>
+      <p class="text-center text-xs text-on-surface-variant">Алгоритм автоматически разделит ФИО и телефоны для обзвона</p>
+    </div>
+
+    <!-- Processing Status (hidden initially) -->
+    <div id="processingStatus" class="hidden bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col gap-2 relative overflow-hidden">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-full bg-[#dbe1ff] flex items-center justify-center text-primary">
+            <span class="material-symbols-outlined text-[18px]">auto_read_play</span>
+          </div>
+          <span class="text-base font-semibold text-on-surface">Статус обработки</span>
+        </div>
+        <span class="text-base text-primary font-bold" id="processPercent">0%</span>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <div class="flex justify-between text-xs text-on-surface-variant">
+          <span id="processText">Подготовка...</span>
+          <span class="text-primary font-semibold" id="processLabel">Идет парсинг</span>
+        </div>
+        <div class="w-full h-2.5 bg-surface-container-highest rounded-full overflow-hidden">
+          <div class="h-full bg-primary rounded-full transition-all duration-500" id="processBar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <div class="flex items-center gap-2 p-2.5 rounded-lg bg-surface-container-low">
+          <div class="w-6 h-6 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">check_circle</span>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs text-on-surface-variant truncate">Успешно</span>
+            <span class="text-base font-semibold text-on-surface" id="processOk">0</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 p-2.5 rounded-lg bg-error-container">
+          <div class="w-6 h-6 rounded-full bg-error text-white flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[16px]">priority_high</span>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs text-on-error-container truncate">Требуют внимания</span>
+            <span class="text-base font-semibold text-on-error-container" id="processErr">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN: ERRORS ===== -->
+  <section id="screen-errors" class="screen px-4 py-4 flex-col gap-3 hidden">
+    <!-- Error Banner -->
+    <div id="errorBanner" class="w-full bg-error-container text-on-error-container p-4 rounded-xl shadow-sm flex items-start gap-3">
+      <div class="w-10 h-10 rounded-full bg-error text-white flex items-center justify-center shrink-0 shadow-sm">
+        <span class="material-symbols-outlined text-[20px]">healing</span>
+      </div>
+      <div class="flex flex-col flex-1 min-w-0">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-base font-bold">Найдено <span id="errorCount">0</span> ошибок</span>
+        </div>
+        <p class="text-xs mt-1 leading-snug opacity-90">Исправьте их вручную или исключите из списка.</p>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="w-full bg-surface-container-lowest rounded-xl p-2 shadow-sm flex items-center justify-between">
+      <div class="flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-primary text-[18px]">checklist_rtl</span>
+        <span class="text-sm font-semibold text-on-surface">Готовность базы</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-24 h-2 bg-surface-container rounded-full overflow-hidden">
+          <div class="h-full bg-primary rounded-full transition-all duration-500" id="readyBar" style="width:0%"></div>
+        </div>
+        <span class="text-sm font-bold text-primary" id="readyText">0 / 0</span>
+      </div>
+    </div>
+
+    <!-- Error Cards -->
+    <div class="flex flex-col gap-3" id="errorCards"></div>
+
+    <!-- Empty State -->
+    <div id="noErrorsState" class="hidden flex-col items-center justify-center p-6 text-center bg-surface-container-lowest rounded-xl shadow-sm gap-3 py-10">
+      <div class="w-16 h-16 rounded-full bg-secondary-container text-primary flex items-center justify-center mb-1">
+        <span class="material-symbols-outlined text-[36px]" style="font-variation-settings:'FILL' 1;">task_alt</span>
+      </div>
+      <span class="text-lg font-bold text-on-surface">Все ошибки устранены!</span>
+      <p class="text-sm text-on-surface-variant max-w-xs">База контактов очищена и готова к обзвону.</p>
+    </div>
+
+    <!-- Continue Button -->
+    <div class="sticky bottom-0 bg-surface/90 backdrop-blur-md -mx-4 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+      <button onclick="goToCallScreen()" class="w-full h-14 bg-primary text-on-primary font-semibold rounded-xl shadow-md flex items-center justify-between px-4 active:scale-[0.99] transition-all hover:bg-primary-container">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[20px]">phone_in_talk</span>
+          <div class="flex flex-col text-left">
+            <span class="text-base font-bold leading-tight">Продолжить к обзвону</span>
+            <span class="text-xs font-normal opacity-80" id="readyCountText">0 контактов готово</span>
+          </div>
+        </div>
+        <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+        </div>
+      </button>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm hidden items-end justify-center">
+      <div class="bg-surface-container-lowest w-full max-w-lg rounded-t-2xl p-4 flex flex-col gap-3 shadow-2xl animate-slide-up">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[20px]">edit</span>
+            <span class="text-lg font-semibold text-on-surface">Ручная правка</span>
+          </div>
+          <button onclick="closeEditModal()" class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+        <div class="flex flex-col gap-2">
+          <div class="flex flex-col gap-1">
+            <label class="text-sm font-semibold text-on-surface-variant">ФИО контакта</label>
+            <input id="modalFio" type="text" placeholder="Иван Иванович Иванов" class="h-12 px-3 rounded-xl bg-surface-container text-on-surface text-sm outline-none focus:ring-2 focus:ring-primary">
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-sm font-semibold text-on-surface-variant">Номер телефона</label>
+            <input id="modalPhone" type="tel" placeholder="+7 (999) 000-00-00" class="h-12 px-3 rounded-xl bg-surface-container text-on-surface text-base outline-none focus:ring-2 focus:ring-primary">
+          </div>
+        </div>
+        <div class="flex items-center gap-2 pt-2">
+          <button onclick="closeEditModal()" class="flex-1 h-12 rounded-xl bg-surface-container text-on-surface text-base font-semibold">Отмена</button>
+          <button onclick="saveEdit()" class="flex-1 h-12 rounded-xl bg-primary text-on-primary text-base font-semibold shadow-sm">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN: CALLING ===== -->
+  <section id="screen-calling" class="screen px-4 py-4 flex-col gap-3 hidden">
+    <!-- Queue Progress -->
+    <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+          <span class="text-sm font-semibold text-on-surface">Очередь обзвона</span>
+        </div>
+        <span class="text-sm font-semibold text-primary" id="callProgress">Контакт 0 из 0</span>
+      </div>
+      <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+        <div class="bg-primary h-full rounded-full transition-all duration-300" id="callBar" style="width:0%"></div>
+      </div>
+      <div class="flex items-center justify-between text-on-surface-variant text-xs">
+        <span>Обзвонено: <span id="callDone">0</span></span>
+        <span>Осталось: <span id="callLeft">0</span></span>
+      </div>
+    </div>
+
+    <!-- Current Contact Card -->
+    <div id="currentContactCard" class="bg-surface-container-lowest rounded-xl shadow-md p-4 flex flex-col gap-3 relative overflow-hidden">
+      <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary" id="contactAccent"></div>
+      <div class="flex items-start justify-between gap-2 pl-1">
+        <div class="flex flex-col min-w-0">
+          <h2 class="text-lg font-bold text-on-surface truncate" id="contactName">—</h2>
+          <p class="text-xs text-on-surface-variant" id="contactCompany"></p>
+        </div>
+        <div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center shrink-0 text-primary">
+          <span class="material-symbols-outlined text-[28px]" style="font-variation-settings:'FILL' 1;">account_circle</span>
+        </div>
+      </div>
+      <div class="bg-surface-container-low rounded-lg p-2 pl-3 flex items-center justify-between">
+        <div class="flex flex-col">
+          <span class="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Телефон</span>
+          <span class="text-base font-bold text-on-surface tracking-wide select-all" id="contactPhone">—</span>
+        </div>
+        <button onclick="copyPhone()" class="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-container-high active:scale-95 flex items-center justify-center text-primary transition-transform" title="Скопировать">
+          <span class="material-symbols-outlined text-[18px]">content_copy</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Call Buttons -->
+    <div class="flex flex-col gap-2">
+      <a id="callBtn" href="tel:" class="w-full h-14 bg-primary text-on-primary rounded-xl flex items-center justify-center gap-2 font-semibold text-base shadow-md hover:bg-primary-container active:scale-[0.98] transition-all">
+        <span class="material-symbols-outlined text-[22px]" style="font-variation-settings:'FILL' 1;">call</span> Позвонить
+      </a>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="sendSMS()" class="h-12 bg-surface-container-lowest text-on-surface hover:bg-surface-container rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold shadow-sm transition-all">
+          <span class="material-symbols-outlined text-[18px] text-primary">sms</span> SMS
+        </button>
+        <button onclick="sendWhatsApp()" class="h-12 bg-surface-container-lowest text-on-surface hover:bg-surface-container rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold shadow-sm transition-all">
+          <span class="material-symbols-outlined text-[18px] text-primary">chat</span> WhatsApp
+        </button>
+      </div>
+    </div>
+
+    <!-- Status Grid -->
+    <div class="bg-surface-container-lowest rounded-xl shadow-sm p-4 flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-semibold text-on-surface">Статус после звонка:</h2>
+        <span class="text-xs text-on-surface-variant flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-error"></span> Обязательно
+        </span>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="setContactStatus('confirmed')" class="status-btn min-h-[60px] p-2 rounded-lg flex items-center justify-between text-left transition-all bg-surface-container text-on-surface hover:bg-surface-container-high" data-status="confirmed">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-3.5 h-3.5 rounded-full dot-green shrink-0"></span>
+            <span class="text-sm font-semibold leading-tight">Будет присутствовать</span>
+          </div>
+          <span class="material-symbols-outlined text-[20px] status-check opacity-0">radio_button_unchecked</span>
+        </button>
+        <button onclick="setContactStatus('unavailable')" class="status-btn min-h-[60px] p-2 rounded-lg flex items-center justify-between text-left transition-all bg-surface-container text-on-surface hover:bg-surface-container-high" data-status="unavailable">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-3.5 h-3.5 rounded-full dot-yellow shrink-0"></span>
+            <span class="text-sm font-semibold leading-tight">Не доступен</span>
+          </div>
+          <span class="material-symbols-outlined text-[20px] status-check opacity-0">radio_button_unchecked</span>
+        </button>
+        <button onclick="setContactStatus('declined')" class="status-btn min-h-[60px] p-2 rounded-lg flex items-center justify-between text-left transition-all bg-surface-container text-on-surface hover:bg-surface-container-high" data-status="declined">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-3.5 h-3.5 rounded-full dot-red shrink-0"></span>
+            <span class="text-sm font-semibold leading-tight">Отказ</span>
+          </div>
+          <span class="material-symbols-outlined text-[20px] status-check opacity-0">radio_button_unchecked</span>
+        </button>
+        <button onclick="setContactStatus('uncertain')" class="status-btn min-h-[60px] p-2 rounded-lg flex items-center justify-between text-left transition-all bg-surface-container text-on-surface hover:bg-surface-container-high" data-status="uncertain">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-3.5 h-3.5 rounded-full dot-orange shrink-0"></span>
+            <span class="text-sm font-semibold leading-tight">Под вопросом</span>
+          </div>
+          <span class="material-symbols-outlined text-[20px] status-check opacity-0">radio_button_unchecked</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Call Note -->
+    <div class="bg-surface-container-lowest rounded-xl shadow-sm p-4 flex flex-col gap-2">
+      <label class="text-base font-semibold text-on-surface flex items-center justify-between">
+        <span>Заметка по звонку:</span>
+        <span class="text-xs text-on-surface-variant font-normal">Сохраняется сразу</span>
+      </label>
+      <textarea id="callNote" class="w-full bg-surface-container-low text-on-surface rounded-lg p-2 text-sm placeholder:text-outline focus:outline-none focus:bg-surface-container transition-colors resize-none" placeholder="Добавить заметку (напр. перезвонить в 18:00)" rows="2"></textarea>
+      <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        <button onclick="addQuickTag('Перезвонить в 18:00')" class="quick-tag px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-secondary-container hover:text-on-secondary-container text-xs font-semibold whitespace-nowrap transition-colors">Перезвонить в 18:00</button>
+        <button onclick="addQuickTag('Занят на совещании')" class="quick-tag px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-secondary-container hover:text-on-secondary-container text-xs font-semibold whitespace-nowrap transition-colors">Занят на совещании</button>
+        <button onclick="addQuickTag('Выслать билет')" class="quick-tag px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-secondary-container hover:text-on-secondary-container text-xs font-semibold whitespace-nowrap transition-colors">Выслать билет</button>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex items-center gap-2">
+      <button onclick="prevContact()" class="flex-1 h-12 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high active:scale-[0.98] flex items-center justify-center gap-1.5 text-sm font-semibold transition-all">
+        <span class="material-symbols-outlined text-[18px]">arrow_back</span> Предыдущий
+      </button>
+      <button onclick="nextContact()" class="flex-1 h-12 rounded-lg bg-primary-container text-on-primary hover:bg-primary active:scale-[0.98] flex items-center justify-center gap-1.5 text-sm font-semibold shadow-sm transition-all">
+        Следующий <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+      </button>
+    </div>
+
+    <!-- Desktop Keyboard Hint -->
+    <div class="hidden md:flex bg-surface-container-low rounded-xl p-3 items-center gap-3 text-xs text-on-surface-variant">
+      <span class="material-symbols-outlined text-[16px] text-primary">keyboard</span>
+      <div class="flex flex-wrap gap-x-3 gap-y-1">
+        <span><kbd class="px-1.5 py-0.5 bg-surface-container-high rounded text-[10px] font-mono">→</kbd> Следующий</span>
+        <span><kbd class="px-1.5 py-0.5 bg-surface-container-high rounded text-[10px] font-mono">←</kbd> Предыдущий</span>
+        <span><kbd class="px-1.5 py-0.5 bg-surface-container-high rounded text-[10px] font-mono">1</kbd> Присутствие</span>
+        <span><kbd class="px-1.5 py-0.5 bg-surface-container-high rounded text-[10px] font-mono">2</kbd> Недоступен</span>
+        <span><kbd class="px-1.5 py-0.5 bg-surface-container-high rounded text-[10px] font-mono">3</kbd> Отказ</span>
+        <span><kbd class="px-1.5 py-0.5 bg-surface-container-high rounded text-[10px] font-mono">4</kbd> Вопрос</span>
+        <span><kbd class="px-1.5 py-0.5 bg-surface-container-high rounded text-[10px] font-mono">C</kbd> Копировать</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN: EXPORT ===== -->
+  <section id="screen-export" class="screen px-4 py-4 flex-col gap-3 hidden">
+    <!-- Success Banner -->
+    <div class="relative overflow-hidden bg-surface-container-lowest rounded-xl p-5 shadow-sm">
+      <div class="absolute -right-6 -top-6 w-28 h-28 bg-primary/10 rounded-full blur-xl pointer-events-none"></div>
+      <div class="relative z-10 flex flex-col items-center text-center space-y-2">
+        <div class="w-14 h-14 rounded-full bg-[#dbe1ff] flex items-center justify-center text-primary mb-1">
+          <span class="material-symbols-outlined text-[32px]" style="font-variation-settings:'FILL' 1;">task_alt</span>
+        </div>
+        <h2 class="text-lg font-bold text-on-surface">Обзвон завершён!</h2>
+        <p class="text-sm text-on-surface-variant max-w-[280px]" id="exportSummaryText">Все контакты обработаны.</p>
+      </div>
+    </div>
+
+    <!-- Status Distribution -->
+    <div class="flex flex-col gap-1">
+      <span class="text-base font-semibold text-on-surface px-1">Распределение статусов</span>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="status-green rounded-xl p-3 flex flex-col justify-between h-24 relative overflow-hidden shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="material-symbols-outlined text-[#16A34A] text-[22px]">check_circle</span>
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-[#BBF7D0] text-[#16A34A]" id="statGreenPct">0%</span>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-[#14532D] leading-none" id="statGreenCount">0</div>
+            <div class="text-xs font-semibold text-[#15803D] mt-1">Будут присутствовать</div>
+          </div>
+        </div>
+        <div class="status-orange rounded-xl p-3 flex flex-col justify-between h-24 relative overflow-hidden shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="material-symbols-outlined text-[#EA580C] text-[22px]">help</span>
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-[#FED7AA] text-[#EA580C]" id="statOrangePct">0%</span>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-[#7C2D12] leading-none" id="statOrangeCount">0</div>
+            <div class="text-xs font-semibold text-[#C2410C] mt-1">Под вопросом</div>
+          </div>
+        </div>
+        <div class="status-yellow rounded-xl p-3 flex flex-col justify-between h-24 relative overflow-hidden shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="material-symbols-outlined text-[#CA8A04] text-[22px]">phone_missed</span>
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-[#FEF08A] text-[#CA8A04]" id="statYellowPct">0%</span>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-[#713F12] leading-none" id="statYellowCount">0</div>
+            <div class="text-xs font-semibold text-[#A16207] mt-1">Не доступны</div>
+          </div>
+        </div>
+        <div class="status-red rounded-xl p-3 flex flex-col justify-between h-24 relative overflow-hidden shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="material-symbols-outlined text-[#DC2626] text-[22px]">cancel</span>
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-[#FECACA] text-[#DC2626]" id="statRedPct">0%</span>
+          </div>
+          <div>
+            <div class="text-2xl font-bold text-[#7F1D1D] leading-none" id="statRedCount">0</div>
+            <div class="text-xs font-semibold text-[#B91C1C] mt-1">Отказы</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Buttons -->
+    <div class="flex flex-col gap-2">
+      <span class="text-base font-semibold text-on-surface px-1">Экспорт результатов</span>
+      <!-- Clipboard -->
+      <button onclick="exportClipboard()" class="w-full bg-primary text-on-primary rounded-xl p-3 flex items-center justify-between shadow-md active:scale-[0.98] transition-transform text-left">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-white text-[22px]">content_copy</span>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-base font-semibold truncate text-white">Скопировать в буфер</span>
+            <span class="text-xs text-white/70 truncate">Текстовая сводка с эмодзи</span>
+          </div>
+        </div>
+        <span class="shrink-0 bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-full">Быстро</span>
+      </button>
+      <!-- TXT -->
+      <button onclick="exportTxt()" class="w-full p-3 flex items-center justify-between hover:bg-surface-container-low active:bg-surface-container transition-colors text-left bg-surface-container-lowest rounded-xl shadow-sm">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-on-surface-variant text-[20px]">text_snippet</span>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-base font-semibold text-on-surface truncate">Экспорт в TXT</span>
+            <span class="text-xs text-on-surface-variant truncate">Список с эмодзи статусов</span>
+          </div>
+        </div>
+        <span class="material-symbols-outlined text-on-surface-variant text-[18px] shrink-0">download</span>
+      </button>
+      <!-- Word -->
+      <button onclick="exportWord()" class="w-full p-3 flex items-center justify-between hover:bg-surface-container-low active:bg-surface-container transition-colors text-left bg-surface-container-lowest rounded-xl shadow-sm">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-secondary-container flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-primary text-[20px]">description</span>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-base font-semibold text-on-surface truncate">Экспорт в Word (.doc)</span>
+            <span class="text-xs text-on-surface-variant truncate">Цветное выделение статусов</span>
+          </div>
+        </div>
+        <span class="material-symbols-outlined text-on-surface-variant text-[18px] shrink-0">download</span>
+      </button>
+      <!-- Excel -->
+      <button onclick="exportExcel()" class="w-full p-3 flex items-center justify-between hover:bg-surface-container-low active:bg-surface-container transition-colors text-left bg-surface-container-lowest rounded-xl shadow-sm">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-[#DCFCE7] flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[#15803D] text-[20px]">table_view</span>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-base font-semibold text-on-surface truncate">Экспорт в Excel (.xlsx)</span>
+            <span class="text-xs text-on-surface-variant truncate">ФИО, Телефон, Статус, Заметка</span>
+          </div>
+        </div>
+        <span class="material-symbols-outlined text-on-surface-variant text-[18px] shrink-0">download</span>
+      </button>
+    </div>
+
+    <!-- Restart -->
+    <button onclick="resetAll()" class="w-full py-2 flex items-center justify-center gap-1.5 text-primary hover:text-primary-container text-sm font-semibold active:opacity-75 transition-opacity">
+      <span class="material-symbols-outlined text-[18px]">restart_alt</span> Начать новый список
+    </button>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-24 left-4 right-4 bg-[#2d3133] text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 transform translate-y-32 opacity-0 pointer-events-none transition-all duration-300 z-50">
+      <span class="material-symbols-outlined text-green-400 text-[18px]">check</span>
+      <span class="text-sm" id="toastText">Готово!</span>
+    </div>
+  </section>
+</main>
+
+<!-- ===================== BOTTOM NAV ===================== -->
+<nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/95 backdrop-blur-xl shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
+  <div class="flex justify-around items-center h-16 px-2 max-w-7xl mx-auto">
+    <button onclick="switchScreen('import')" class="nav-btn flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-on-surface-variant min-w-[64px] transition-all active-nav" data-screen="import">
+      <div class="w-12 h-8 flex items-center justify-center rounded-full transition-colors">
+        <span class="material-symbols-outlined text-[20px]">file_upload</span>
+      </div>
+      <span class="text-[10px] font-semibold">Импорт</span>
+    </button>
+    <button onclick="switchScreen('errors')" class="nav-btn flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-on-surface-variant min-w-[64px] relative transition-all" data-screen="errors">
+      <div class="w-12 h-8 flex items-center justify-center rounded-full transition-colors relative">
+        <span class="material-symbols-outlined text-[20px]">error_outline</span>
+        <span id="errorBadge" class="hidden absolute top-1 right-3 w-2 h-2 rounded-full bg-error ring-2 ring-surface-container-lowest"></span>
+      </div>
+      <span class="text-[10px] font-semibold">Ошибки</span>
+    </button>
+    <button onclick="resumeCallScreen()" class="nav-btn flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-on-surface-variant min-w-[64px] transition-all" data-screen="calling">
+      <div class="w-12 h-8 flex items-center justify-center rounded-full transition-colors">
+        <span class="material-symbols-outlined text-[20px]">call</span>
+      </div>
+      <span class="text-[10px] font-semibold">Обзвон</span>
+    </button>
+    <button onclick="switchScreen('export')" class="nav-btn flex flex-col items-center justify-center gap-0.5 py-1 px-3 text-on-surface-variant min-w-[64px] transition-all" data-screen="export">
+      <div class="w-12 h-8 flex items-center justify-center rounded-full transition-colors">
+        <span class="material-symbols-outlined text-[20px]">download</span>
+      </div>
+      <span class="text-[10px] font-semibold">Экспорт</span>
+    </button>
+  </div>
+</nav>
+
+<script>
+// ========== APP STATE ==========
+let contacts = [];
+let currentContactIndex = 0;
+let editingErrorIndex = -1;
+
+const STATUS_MAP = {
+  confirmed:  { label: 'Будут присутствовать', emoji: '🟢', color: '#16A34A', bg: '#DCFCE7', textColor: '#15803D' },
+  unavailable: { label: 'Не доступен', emoji: '🟡', color: '#CA8A04', bg: '#FEF9C3', textColor: '#A16207' },
+  declined:   { label: 'Отказ', emoji: '🔴', color: '#DC2626', bg: '#FEE2E2', textColor: '#B91C1C' },
+  uncertain:  { label: 'Под вопросом', emoji: '🟠', color: '#EA580C', bg: '#FFEDD5', textColor: '#C2410C' }
+};
+
+// ========== PARSER ==========
+function parseContacts(raw) {
+  const lines = raw.split('\n').filter(l => l.trim().length > 0);
+  const results = [];
+  const errors = [];
+
+  lines.forEach((line, idx) => {
+    const cleaned = document.getElementById('optCleanSpaces').checked
+      ? line.replace(/[\t\r\-\(\)\[\]\{\}\/\\|#*~`^_<>]+/g, ' ').replace(/\s+/g, ' ').trim()
+      : line.trim();
+
+    if (!cleaned || cleaned.length < 2) {
+      errors.push({ index: idx, raw: line, type: 'empty', message: 'Пустая или слишком короткая строка', fio: '', phone: '' });
+      return;
+    }
+
+    const parsed = extractPhoneAndName(cleaned);
+    if (parsed.phone) {
+      results.push({ fio: parsed.fio, phone: parsed.phone, raw: line, status: null, note: '', error: false });
+    } else {
+      errors.push({ index: idx, raw: line, type: 'nophone', message: 'Не удалось распознать номер телефона', fio: cleaned, phone: '' });
+    }
+  });
+
+  return { contacts: results, errors };
+}
+
+function extractPhoneAndName(text) {
+  let phone = '';
+  let fio = '';
+  let remaining = text;
+
+  // Try multiple phone patterns
+  const patterns = [
+    /\+\s*7\s*(\d{3})\s*(\d{3})\s*(\d{2})\s*(\d{2})/,
+    /\+\s*7\s*(\d{10})/,
+    /\b8\s*(\d{3})\s*(\d{3})\s*(\d{2})\s*(\d{2})/,
+    /\b8\s*(\d{10})/,
+    /\b7\s*(\d{3})\s*(\d{3})\s*(\d{2})\s*(\d{2})/,
+    /\b(\d{3})\s*(\d{3})\s*(\d{2})\s*(\d{2})/,
+    /\b(\d{10})\b/
+  ];
+
+  for (const pat of patterns) {
+    const m = text.match(pat);
+    if (m) {
+      let digits = m.slice(1).join('');
+      if (digits.length === 10) {
+        phone = '+7' + digits;
+      } else if (digits.length === 11 && digits[0] === '7') {
+        phone = '+' + digits;
+      } else if (digits.length === 11 && digits[0] === '8') {
+        phone = '+7' + digits.slice(1);
+      }
+      remaining = text.replace(pat, ' ').trim();
+      break;
+    }
+  }
+
+  // If no phone found, try finding 10+ consecutive digits
+  if (!phone) {
+    const digitMatch = text.match(/(\d{10,11})/);
+    if (digitMatch) {
+      let d = digitMatch[1];
+      if (d.length === 11 && (d[0] === '7' || d[0] === '8')) {
+        phone = '+7' + (d[0] === '8' ? d.slice(1) : d.slice(1));
+      } else if (d.length === 10) {
+        phone = '+7' + d;
+      }
+      remaining = text.replace(digitMatch[0], ' ').trim();
+    }
+  }
+
+  fio = remaining.replace(/^[\s\-\+]+|[\s\-\+]+$/g, '').replace(/\s+/g, ' ').trim();
+
+  return { phone, fio };
+}
+
+function formatPhoneDisplay(p) {
+  if (!p || p.length !== 12) return p;
+  return `${p.slice(0,2)} (${p.slice(2,5)}) ${p.slice(5,8)}-${p.slice(8,10)}-${p.slice(10,12)}`;
+}
+
+// ========== SCREENS ==========
+function switchScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById('screen-' + name).classList.remove('hidden');
+  document.getElementById('screen-' + name).classList.add('flex');
+
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.remove('text-primary', 'active-nav');
+    btn.classList.add('text-on-surface-variant');
+    const div = btn.querySelector('div');
+    div.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+  });
+
+  const activeBtn = document.querySelector(`.nav-btn[data-screen="${name}"]`);
+  if (activeBtn) {
+    activeBtn.classList.add('text-primary', 'active-nav');
+    activeBtn.classList.remove('text-on-surface-variant');
+    const div = activeBtn.querySelector('div');
+    div.classList.add('bg-secondary-container', 'text-on-secondary-container');
+  }
+
+  const titles = { import: 'Import', errors: 'Errors', calling: 'Active Calling', export: 'Export' };
+  document.getElementById('screenTitle').textContent = titles[name] || name;
+
+  if (name === 'export') updateExportStats();
+  if (name === 'calling' && contacts.length > 0) renderCurrentContact();
+}
+
+// ========== IMPORT ==========
+document.getElementById('rawInput').addEventListener('input', function() {
+  const lines = this.value.split('\n').filter(l => l.trim().length > 0);
+  document.getElementById('lineCounter').textContent = lines.length + ' ' + (lines.length === 1 ? 'строка' : (lines.length < 5 ? 'строки' : 'строк'));
+});
+
+async function pasteFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    const ta = document.getElementById('rawInput');
+    ta.value = ta.value ? ta.value + '\n' + text : text;
+    ta.dispatchEvent(new Event('input'));
+  } catch(e) {
+    document.getElementById('rawInput').focus();
+  }
+}
+
+function startProcessing() {
+  const raw = document.getElementById('rawInput').value.trim();
+  if (!raw) { showToast('Вставьте список контактов'); return; }
+
+  const status = document.getElementById('processingStatus');
+  status.classList.remove('hidden');
+  status.classList.add('flex');
+  document.getElementById('btnProcess').disabled = true;
+
+  const bar = document.getElementById('processBar');
+  const pct = document.getElementById('processPercent');
+  const text = document.getElementById('processText');
+  const ok = document.getElementById('processOk');
+  const err = document.getElementById('processErr');
+
+  bar.style.width = '10%'; pct.textContent = '10%';
+  text.textContent = 'Анализ строк...';
+
+  setTimeout(() => {
+    bar.style.width = '40%'; pct.textContent = '40%';
+    text.textContent = 'Распознавание номеров...';
+  }, 200);
+
+  setTimeout(() => {
+    const result = parseContacts(raw);
+    contacts = result.contacts;
+
+    bar.style.width = '80%'; pct.textContent = '80%';
+    text.textContent = 'Валидация данных...';
+    ok.textContent = contacts.length;
+    err.textContent = result.errors.length;
+
+    setTimeout(() => {
+      bar.style.width = '100%'; pct.textContent = '100%';
+      document.getElementById('processLabel').textContent = 'Готово!';
+
+      // Store errors for the errors screen
+      window._parseErrors = result.errors;
+      updateErrorBadge(result.errors.length);
+
+      if (result.errors.length > 0) {
+        switchScreen('errors');
+        renderErrors(result.errors);
+      } else {
+        showToast('Все ' + contacts.length + ' контактов распознаны!');
+        goToCallScreen();
+      }
+    }, 400);
+  }, 500);
+}
+
+// ========== ERRORS ==========
+function updateErrorBadge(count) {
+  const badge = document.getElementById('errorBadge');
+  if (count > 0) {
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function renderErrors(errors) {
+  const container = document.getElementById('errorCards');
+  container.innerHTML = '';
+  document.getElementById('errorCount').textContent = errors.length;
+
+  const ready = contacts.length;
+  const total = ready + errors.length;
+  document.getElementById('readyBar').style.width = (total ? (ready / total * 100) : 0) + '%';
+  document.getElementById('readyText').textContent = ready + ' / ' + total;
+  document.getElementById('readyCountText').textContent = ready + ' контактов готово';
+
+  if (errors.length === 0) {
+    document.getElementById('noErrorsState').classList.remove('hidden');
+    document.getElementById('noErrorsState').classList.add('flex');
+    return;
+  }
+
+  errors.forEach((err, i) => {
+    const card = document.createElement('div');
+    card.className = 'bg-surface-container-lowest rounded-xl p-4 shadow-sm relative overflow-hidden flex flex-col gap-2';
+    card.id = 'err-card-' + i;
+
+    const typeLabel = err.type === 'empty' ? 'Критическая ошибка' : 'Неполный номер';
+    const typeIcon = err.type === 'empty' ? 'warning' : 'phone_disabled';
+    const borderColor = 'bg-error';
+
+    card.innerHTML = `
+      <div class="absolute left-0 top-0 bottom-0 w-1.5 ${borderColor}"></div>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 rounded-lg bg-surface-container-high text-on-surface-variant text-xs font-semibold">Строка #${err.index + 1}</span>
+          <span class="px-2 py-0.5 rounded-lg bg-error-container text-on-error-container text-xs font-semibold flex items-center gap-1">
+            <span class="material-symbols-outlined text-[12px]">${typeIcon}</span> ${typeLabel}
+          </span>
+        </div>
+      </div>
+      <div class="bg-surface-container-low rounded-lg p-2 flex flex-col gap-1">
+        <span class="text-xs text-on-surface-variant">Исходная строка:</span>
+        <div class="font-mono bg-error/10 text-error px-3 py-2 rounded-lg text-sm font-bold tracking-wide flex items-center justify-between">
+          <span>«${escapeHtml(err.raw)}»</span>
+          <span class="text-xs text-error bg-surface-container-lowest px-2 py-0.5 rounded shadow-sm">${err.raw.length} симв.</span>
+        </div>
+      </div>
+      <div class="flex items-start gap-2 bg-error-container/40 p-2.5 rounded-lg text-on-error-container">
+        <span class="material-symbols-outlined text-error text-[16px] shrink-0 mt-0.5">error_outline</span>
+        <span class="text-xs">${err.message}</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="dismissError(${i})" class="h-11 rounded-xl bg-error text-white text-sm font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-[16px]">delete</span> Удалить
+        </button>
+        <button onclick="openEditModal(${i})" class="h-11 rounded-xl bg-surface-container-high text-on-surface text-sm font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-[16px]">edit_note</span> Ввести вручную
+        </button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function dismissError(idx) {
+  const card = document.getElementById('err-card-' + idx);
+  if (card) {
+    card.style.transition = 'all 0.3s ease-out';
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(60px)';
+    setTimeout(() => {
+      card.remove();
+      window._parseErrors.splice(idx, 1);
+      renderErrors(window._parseErrors);
+    }, 300);
+  }
+}
+
+function openEditModal(idx) {
+  editingErrorIndex = idx;
+  const err = window._parseErrors[idx];
+  document.getElementById('modalFio').value = err.fio || '';
+  document.getElementById('modalPhone').value = err.phone || '+7';
+  document.getElementById('editModal').classList.remove('hidden');
+  document.getElementById('editModal').classList.add('flex');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.add('hidden');
+  document.getElementById('editModal').classList.remove('flex');
+}
+
+function saveEdit() {
+  const fio = document.getElementById('modalFio').value.trim();
+  const phone = document.getElementById('modalPhone').value.trim().replace(/\D/g, '');
+  let normalizedPhone = '';
+  if (phone.length === 11 && (phone[0] === '7' || phone[0] === '8')) {
+    normalizedPhone = '+7' + phone.slice(1);
+  } else if (phone.length === 10) {
+    normalizedPhone = '+7' + phone;
+  }
+
+  if (normalizedPhone && normalizedPhone.length === 12) {
+    contacts.push({ fio, phone: normalizedPhone, raw: window._parseErrors[editingErrorIndex].raw, status: null, note: '', error: false });
+    dismissError(editingErrorIndex);
+    closeEditModal();
+    updateErrorBadge(window._parseErrors.length);
+  } else {
+    showToast('Введите корректный номер');
+  }
+}
+
+// ========== CALLING ==========
+function goToCallScreen() {
+  if (contacts.length === 0) { showToast('Нет контактов для обзвона'); return; }
+  currentContactIndex = 0;
+  contacts.forEach(c => { c.status = null; c.note = ''; });
+  switchScreen('calling');
+  addSearchBar();
+  renderCurrentContact();
+  saveToStorage();
+}
+
+function resumeCallScreen() {
+  if (contacts.length === 0) { switchScreen('import'); return; }
+  switchScreen('calling');
+  addSearchBar();
+  renderCurrentContact();
+}
+
+function renderCurrentContact() {
+  if (contacts.length === 0) return;
+  const c = contacts[currentContactIndex];
+  document.getElementById('contactName').textContent = c.fio || 'Без имени';
+  document.getElementById('contactPhone').textContent = formatPhoneDisplay(c.phone);
+  document.getElementById('callBtn').href = 'tel:' + c.phone;
+  document.getElementById('callNote').value = c.note || '';
+
+  document.getElementById('callProgress').textContent = `Контакт ${currentContactIndex + 1} из ${contacts.length}`;
+  document.getElementById('callBar').style.width = ((currentContactIndex + 1) / contacts.length * 100) + '%';
+  document.getElementById('callDone').textContent = contacts.filter(c => c.status).length;
+  document.getElementById('callLeft').textContent = contacts.filter(c => !c.status).length;
+
+  // Update status buttons
+  document.querySelectorAll('.status-btn').forEach(btn => {
+    const s = btn.getAttribute('data-status');
+    const icon = btn.querySelector('.status-check');
+    if (s === c.status) {
+      btn.classList.add('bg-primary-container', 'text-on-primary', 'shadow-sm');
+      btn.classList.remove('bg-surface-container', 'text-on-surface');
+      icon.textContent = 'check_circle';
+      icon.classList.remove('opacity-0');
+    } else {
+      btn.classList.remove('bg-primary-container', 'text-on-primary', 'shadow-sm');
+      btn.classList.add('bg-surface-container', 'text-on-surface');
+      icon.textContent = 'radio_button_unchecked';
+      icon.classList.add('opacity-0');
+    }
+  });
+
+  // Accent color based on status
+  const accent = document.getElementById('contactAccent');
+  if (c.status && STATUS_MAP[c.status]) {
+    accent.style.backgroundColor = STATUS_MAP[c.status].color;
+  } else {
+    accent.style.backgroundColor = '#2563EB';
+  }
+}
+
+function setContactStatus(status) {
+  contacts[currentContactIndex].status = status;
+  renderCurrentContact();
+
+  // Auto-advance after short delay
+  setTimeout(() => {
+    if (currentContactIndex < contacts.length - 1) {
+      nextContact();
+    }
+  }, 300);
+}
+
+function nextContact() {
+  // Save note
+  contacts[currentContactIndex].note = document.getElementById('callNote').value;
+  if (currentContactIndex < contacts.length - 1) {
+    currentContactIndex++;
+    renderCurrentContact();
+  } else {
+    showToast('Обзвон завершён! Перейдите к экспорту.');
+  }
+}
+
+function prevContact() {
+  contacts[currentContactIndex].note = document.getElementById('callNote').value;
+  if (currentContactIndex > 0) {
+    currentContactIndex--;
+    renderCurrentContact();
+  }
+}
+
+function copyPhone() {
+  const phone = contacts[currentContactIndex].phone;
+  navigator.clipboard.writeText(phone).then(() => showToast('Номер скопирован'));
+}
+
+function sendSMS() {
+  const phone = contacts[currentContactIndex].phone;
+  window.open('sms:' + phone, '_blank');
+}
+
+function sendWhatsApp() {
+  const phone = contacts[currentContactIndex].phone;
+  window.open('https://wa.me/' + phone.replace('+', ''), '_blank');
+}
+
+function addQuickTag(tag) {
+  const note = document.getElementById('callNote');
+  note.value = note.value ? note.value + ', ' + tag : tag;
+  contacts[currentContactIndex].note = note.value;
+}
+
+// Auto-save note on input
+document.getElementById('callNote').addEventListener('input', function() {
+  if (contacts[currentContactIndex]) {
+    contacts[currentContactIndex].note = this.value;
+  }
+});
+
+// ========== EXPORT ==========
+function updateExportStats() {
+  const total = contacts.length;
+  if (total === 0) return;
+
+  const counts = { confirmed: 0, unavailable: 0, declined: 0, uncertain: 0, unanswered: 0 };
+  contacts.forEach(c => {
+    if (c.status && counts[c.status] !== undefined) counts[c.status]++;
+    else counts.unanswered++;
+  });
+
+  const pct = (n) => total ? Math.round(n / total * 100) + '%' : '0%';
+
+  document.getElementById('statGreenCount').textContent = counts.confirmed;
+  document.getElementById('statGreenPct').textContent = pct(counts.confirmed);
+  document.getElementById('statOrangeCount').textContent = counts.uncertain;
+  document.getElementById('statOrangePct').textContent = pct(counts.uncertain);
+  document.getElementById('statYellowCount').textContent = counts.unavailable;
+  document.getElementById('statYellowPct').textContent = pct(counts.unavailable);
+  document.getElementById('statRedCount').textContent = counts.declined;
+  document.getElementById('statRedPct').textContent = pct(counts.declined);
+
+  document.getElementById('exportSummaryText').textContent =
+    `Всего ${total} контактов: ${counts.confirmed} присутствие, ${counts.uncertain} под вопросом, ${counts.unavailable} недоступны, ${counts.declined} отказы.`;
+}
+
+function getStatusInfo(status) {
+  return STATUS_MAP[status] || { label: 'Не обзвонен', emoji: '⚪', color: '#999999', bg: '#F3F4F6', textColor: '#6B7280' };
+}
+
+function exportClipboard() {
+  const campaign = document.getElementById('campaignName').value || 'Обзвон';
+  let text = `📊 Итоги обзвона «${campaign}»:\n`;
+  text += `Всего: ${contacts.length} чел.\n`;
+  text += `🟢 Будут присутствовать: ${contacts.filter(c=>c.status==='confirmed').length} чел.\n`;
+  text += `🟠 Под вопросом: ${contacts.filter(c=>c.status==='uncertain').length} чел.\n`;
+  text += `🟡 Не доступны: ${contacts.filter(c=>c.status==='unavailable').length} чел.\n`;
+  text += `🔴 Отказы: ${contacts.filter(c=>c.status==='declined').length} чел.\n\n`;
+  text += `📋 Детальный список:\n`;
+  contacts.forEach(c => {
+    const info = getStatusInfo(c.status);
+    text += `${info.emoji} ${c.fio || 'Без имени'} — ${formatPhoneDisplay(c.phone)}${c.note ? ' [' + c.note + ']' : ''}\n`;
+  });
+  navigator.clipboard.writeText(text).then(() => showToast('Скопировано в буфер обмена!'));
+}
+
+function exportTxt() {
+  const campaign = document.getElementById('campaignName').value || 'Обзвон';
+  let text = `ОТЧЁТ ОБЗВОНА: ${campaign}\n`;
+  text += `${'='.repeat(40)}\n`;
+  text += `Дата: ${new Date().toLocaleDateString('ru-RU')}\n`;
+  text += `Всего контактов: ${contacts.length}\n\n`;
+  text += `СТАТИСТИКА:\n`;
+  text += `🟢 Будут присутствовать: ${contacts.filter(c=>c.status==='confirmed').length}\n`;
+  text += `🟡 Не доступны: ${contacts.filter(c=>c.status==='unavailable').length}\n`;
+  text += `🔴 Отказы: ${contacts.filter(c=>c.status==='declined').length}\n`;
+  text += `🟠 Под вопросом: ${contacts.filter(c=>c.status==='uncertain').length}\n\n`;
+  text += `СПИСОК КОНТАКТОВ:\n`;
+  text += `${'-'.repeat(40)}\n`;
+  contacts.forEach((c, i) => {
+    const info = getStatusInfo(c.status);
+    text += `${info.emoji} ${i + 1}. ${c.fio || 'Без имени'} — ${formatPhoneDisplay(c.phone)}`;
+    if (c.note) text += ` — ${c.note}`;
+    text += '\n';
+  });
+  downloadFile(text, `obzvon_${campaign.replace(/\s+/g, '_')}.txt`, 'text/plain');
+  showToast('TXT файл скачан!');
+}
+
+function exportWord() {
+  const campaign = document.getElementById('campaignName').value || 'Обзвон';
+  let html = `<html><head><meta charset="utf-8"><title>Отчёт: ${campaign}</title></head><body style="font-family:Arial,sans-serif;padding:20px">`;
+  html += `<h1 style="color:#2563EB">Отчёт обзвона: ${campaign}</h1>`;
+  html += `<p><strong>Дата:</strong> ${new Date().toLocaleDateString('ru-RU')}</p>`;
+  html += `<p><strong>Всего контактов:</strong> ${contacts.length}</p>`;
+  html += `<table style="border-collapse:collapse;width:100%;margin:20px 0">`;
+  html += `<tr style="background:#f0f0f0"><th style="border:1px solid #ccc;padding:8px;text-align:left">№</th><th style="border:1px solid #ccc;padding:8px;text-align:left">ФИО</th><th style="border:1px solid #ccc;padding:8px;text-align:left">Телефон</th><th style="border:1px solid #ccc;padding:8px;text-align:left">Статус</th><th style="border:1px solid #ccc;padding:8px;text-align:left">Заметка</th></tr>`;
+  contacts.forEach((c, i) => {
+    const info = getStatusInfo(c.status);
+    html += `<tr style="background:${info.bg}">`;
+    html += `<td style="border:1px solid #ccc;padding:8px">${i + 1}</td>`;
+    html += `<td style="border:1px solid #ccc;padding:8px;font-weight:bold">${escapeHtml(c.fio || 'Без имени')}</td>`;
+    html += `<td style="border:1px solid #ccc;padding:8px">${formatPhoneDisplay(c.phone)}</td>`;
+    html += `<td style="border:1px solid #ccc;padding:8px;color:${info.textColor};font-weight:bold">${info.emoji} ${info.label}</td>`;
+    html += `<td style="border:1px solid #ccc;padding:8px">${escapeHtml(c.note || '')}</td>`;
+    html += `</tr>`;
+  });
+  html += `</table></body></html>`;
+
+  const blob = new Blob([html], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `obzvon_${campaign.replace(/\s+/g, '_')}.doc`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Word файл скачан!');
+}
+
+function exportExcel() {
+  if (typeof XLSX === 'undefined') {
+    showToast('Библиотека Excel не загружена. Проверьте подключение к интернету.');
+    return;
+  }
+
+  const campaign = document.getElementById('campaignName').value || 'Обзвон';
+  const data = [['№', 'ФИО', 'Телефон', 'Статус', 'Заметка']];
+  contacts.forEach((c, i) => {
+    const info = getStatusInfo(c.status);
+    data.push([i + 1, c.fio || 'Без имени', formatPhoneDisplay(c.phone), info.label, c.note || '']);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  // Set column widths
+  ws['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 20 }, { wch: 25 }, { wch: 30 }];
+
+  // Color the status cells
+  contacts.forEach((c, i) => {
+    const row = i + 1;
+    const cellRef = XLSX.utils.encode_cell({ r: row, c: 3 });
+    const info = getStatusInfo(c.status);
+    if (ws[cellRef]) {
+      ws[cellRef].s = {
+        fill: { fgColor: { rgb: info.bg.replace('#', '') } },
+        font: { color: { rgb: info.textColor.replace('#', '') }, bold: true }
+      };
+    }
+  });
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Обзвон');
+  XLSX.writeFile(wb, `obzvon_${campaign.replace(/\s+/g, '_')}.xlsx`);
+  showToast('Excel файл скачан!');
+}
+
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type: type + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function resetAll() {
+  contacts = [];
+  currentContactIndex = 0;
+  window._parseErrors = [];
+  currentFilter = 'all';
+  currentSearch = '';
+  document.getElementById('rawInput').value = '';
+  document.getElementById('lineCounter').textContent = '0 строк';
+  document.getElementById('processingStatus').classList.add('hidden');
+  document.getElementById('btnProcess').disabled = false;
+  try { localStorage.removeItem('callmaster_contacts'); localStorage.removeItem('callmaster_index'); localStorage.removeItem('callmaster_campaign'); } catch(e) {}
+  switchScreen('import');
+}
+
+// ========== UTILITIES ==========
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastText').textContent = msg;
+  toast.classList.remove('translate-y-32', 'opacity-0', 'pointer-events-none');
+  setTimeout(() => {
+    toast.classList.add('translate-y-32', 'opacity-0', 'pointer-events-none');
+  }, 2500);
+}
+
+function showSettings() {
+  showToast('Настройки в будущей версии');
+}
+
+// ========== SEARCH / FILTER (CALLING SCREEN) ==========
+function addSearchBar() {
+  const existing = document.getElementById('contactSearch');
+  if (existing) return;
+  const card = document.getElementById('currentContactCard');
+  if (!card) return;
+  const searchDiv = document.createElement('div');
+  searchDiv.className = 'bg-surface-container-lowest rounded-xl shadow-sm p-3 flex flex-col gap-2';
+  searchDiv.id = 'contactSearch';
+  searchDiv.innerHTML = `
+    <div class="relative">
+      <span class="material-symbols-outlined text-on-surface-variant text-[18px] absolute left-3 top-1/2 -translate-y-1/2">search</span>
+      <input id="searchInput" type="text" placeholder="Поиск по ФИО или номеру..." class="w-full h-10 pl-10 pr-3 rounded-lg bg-surface-container-low text-on-surface text-sm outline-none focus:ring-2 focus:ring-primary transition-all" oninput="filterContacts(this.value)">
+    </div>
+    <div class="flex gap-2 overflow-x-auto no-scrollbar">
+      <button onclick="filterByStatus('all')" class="filter-chip px-3 py-1 rounded-full bg-primary text-white text-xs font-semibold whitespace-nowrap transition-colors" data-filter="all">Все</button>
+      <button onclick="filterByStatus('confirmed')" class="filter-chip px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold whitespace-nowrap transition-colors" data-filter="confirmed">🟢 Присутствие</button>
+      <button onclick="filterByStatus('unavailable')" class="filter-chip px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold whitespace-nowrap transition-colors" data-filter="unavailable">🟡 Недоступен</button>
+      <button onclick="filterByStatus('declined')" class="filter-chip px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold whitespace-nowrap transition-colors" data-filter="declined">🔴 Отказ</button>
+      <button onclick="filterByStatus('uncertain')" class="filter-chip px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold whitespace-nowrap transition-colors" data-filter="uncertain">🟠 Вопрос</button>
+      <button onclick="filterByStatus('none')" class="filter-chip px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold whitespace-nowrap transition-colors" data-filter="none">⚪ Без статуса</button>
+    </div>
+  `;
+  card.parentNode.insertBefore(searchDiv, card);
+}
+
+let currentFilter = 'all';
+let currentSearch = '';
+
+function filterContacts(query) {
+  currentSearch = query.toLowerCase();
+  updateFilteredIndex();
+}
+
+function filterByStatus(status) {
+  currentFilter = status;
+  document.querySelectorAll('.filter-chip').forEach(ch => {
+    ch.classList.remove('bg-primary', 'text-white');
+    ch.classList.add('bg-surface-container', 'text-on-surface-variant');
+  });
+  const active = document.querySelector(`.filter-chip[data-filter="${status}"]`);
+  if (active) {
+    active.classList.add('bg-primary', 'text-white');
+    active.classList.remove('bg-surface-container', 'text-on-surface-variant');
+  }
+  updateFilteredIndex();
+}
+
+function getFilteredIndices() {
+  return contacts.map((c, i) => ({contact: c, index: i})).filter(({contact}) => {
+    const matchSearch = !currentSearch ||
+      (contact.fio && contact.fio.toLowerCase().includes(currentSearch)) ||
+      contact.phone.includes(currentSearch);
+    const matchStatus = currentFilter === 'all' ||
+      (currentFilter === 'none' && !contact.status) ||
+      contact.status === currentFilter;
+    return matchSearch && matchStatus;
+  });
+}
+
+function updateFilteredIndex() {
+  const filtered = getFilteredIndices();
+  if (filtered.length > 0) {
+    const firstIdx = filtered[0].index;
+    if (currentContactIndex !== firstIdx) {
+      currentContactIndex = firstIdx;
+    }
+  }
+  renderCurrentContact();
+}
+
+function nextFiltered() {
+  contacts[currentContactIndex].note = document.getElementById('callNote').value;
+  const filtered = getFilteredIndices();
+  const pos = filtered.findIndex(f => f.index === currentContactIndex);
+  if (pos < filtered.length - 1) {
+    currentContactIndex = filtered[pos + 1].index;
+    renderCurrentContact();
+  } else if (filtered.length > 0) {
+    currentContactIndex = filtered[0].index;
+    renderCurrentContact();
+    showToast('Прошли по всем отфильтрованным');
+  }
+}
+
+function prevFiltered() {
+  contacts[currentContactIndex].note = document.getElementById('callNote').value;
+  const filtered = getFilteredIndices();
+  const pos = filtered.findIndex(f => f.index === currentContactIndex);
+  if (pos > 0) {
+    currentContactIndex = filtered[pos - 1].index;
+    renderCurrentContact();
+  }
+}
+
+// Override next/prev to use filtered
+const _origNext = nextContact;
+const _origPrev = prevContact;
+nextContact = function() {
+  if (currentSearch || currentFilter !== 'all') { nextFiltered(); return; }
+  _origNext();
+};
+prevContact = function() {
+  if (currentSearch || currentFilter !== 'all') { prevFiltered(); return; }
+  _origPrev();
+};
+
+// ========== LOCAL STORAGE ==========
+function saveToStorage() {
+  try {
+    localStorage.setItem('callmaster_contacts', JSON.stringify(contacts));
+    localStorage.setItem('callmaster_index', currentContactIndex);
+    localStorage.setItem('callmaster_campaign', document.getElementById('campaignName').value);
+  } catch(e) {}
+}
+
+function loadFromStorage() {
+  try {
+    const saved = localStorage.getItem('callmaster_contacts');
+    if (saved) {
+      contacts = JSON.parse(saved);
+      currentContactIndex = parseInt(localStorage.getItem('callmaster_index') || '0');
+      document.getElementById('campaignName').value = localStorage.getItem('callmaster_campaign') || '';
+      if (contacts.length > 0) {
+        showToast('Загружено ' + contacts.length + ' контактов из сохранённой сессии');
+      }
+    }
+  } catch(e) {}
+}
+
+// Auto-save periodically
+setInterval(saveToStorage, 5000);
+
+// ========== DESKTOP CALL MODAL ==========
+function showCallModal() {
+  const c = contacts[currentContactIndex];
+  if (!c) return;
+  const phone = formatPhoneDisplay(c.phone);
+
+  let modal = document.getElementById('desktopCallModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'desktopCallModal';
+    modal.className = 'fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4';
+    modal.innerHTML = `
+      <div class="bg-surface-container-lowest rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-slide-up flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <span class="text-lg font-bold text-on-surface">Звонок</span>
+          <button onclick="closeCallModal()" class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+        <div class="flex flex-col items-center gap-3">
+          <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-primary text-[36px]" style="font-variation-settings:'FILL' 1;">person</span>
+          </div>
+          <div class="text-center">
+            <div class="text-base font-bold text-on-surface" id="modalContactName"></div>
+            <div class="text-xl font-bold text-primary mt-1 tracking-wide" id="modalContactPhone"></div>
+          </div>
+        </div>
+        <div class="flex flex-col gap-2">
+          <button onclick="copyPhoneToClipboard()" class="w-full h-12 bg-surface-container hover:bg-surface-container-high rounded-xl flex items-center justify-center gap-2 text-on-surface text-sm font-semibold transition-colors">
+            <span class="material-symbols-outlined text-[18px]">content_copy</span> Скопировать номер
+          </button>
+          <a id="modalCallLink" href="tel:" class="w-full h-12 bg-primary text-on-primary rounded-xl flex items-center justify-center gap-2 text-sm font-semibold shadow-md hover:bg-primary-container transition-colors no-underline">
+            <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">call</span> Позвонить через телефон
+          </a>
+          <button onclick="window.open('https://web-phone.beeline.ru','_blank')" class="w-full h-12 bg-[#ffcc00] text-[#333] rounded-xl flex items-center justify-center gap-2 text-sm font-semibold hover:brightness-95 transition-colors">
+            <span class="material-symbols-outlined text-[18px]">dialpad</span> Билайн Софтфон (Web)
+          </button>
+          <div class="flex gap-2">
+            <a id="modalSmsLink" href="sms:" class="flex-1 h-11 bg-surface-container-lowest border border-outline-variant text-on-surface rounded-lg flex items-center justify-center gap-1 text-xs font-semibold hover:bg-surface-container transition-colors no-underline">
+              <span class="material-symbols-outlined text-[16px]">sms</span> SMS
+            </a>
+            <a id="modalWaLink" href="https://wa.me/" target="_blank" class="flex-1 h-11 bg-surface-container-lowest border border-outline-variant text-on-surface rounded-lg flex items-center justify-center gap-1 text-xs font-semibold hover:bg-surface-container transition-colors no-underline">
+              <span class="material-symbols-outlined text-[16px]">chat</span> WhatsApp
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('modalContactName').textContent = c.fio || 'Без имени';
+  document.getElementById('modalContactPhone').textContent = phone;
+  document.getElementById('modalCallLink').href = 'tel:' + c.phone;
+  document.getElementById('modalSmsLink').href = 'sms:' + c.phone;
+  document.getElementById('modalWaLink').href = 'https://wa.me/' + c.phone.replace('+', '');
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeCallModal() {
+  const modal = document.getElementById('desktopCallModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+function copyPhoneToClipboard() {
+  const c = contacts[currentContactIndex];
+  if (c) {
+    navigator.clipboard.writeText(c.phone).then(() => showToast('Номер скопирован: ' + c.phone));
+  }
+}
+
+// Detect desktop and override call button
+function isDesktop() {
+  return !('ontouchstart' in window) && window.innerWidth > 768;
+}
+
+const _origCallBtn = document.getElementById('callBtn');
+if (_origCallBtn) {
+  _origCallBtn.addEventListener('click', function(e) {
+    if (isDesktop()) {
+      e.preventDefault();
+      e.stopPropagation();
+      showCallModal();
+      return false;
+    }
+  });
+}
+
+// ========== KEYBOARD SHORTCUTS (Desktop) ==========
+document.addEventListener('keydown', function(e) {
+  const screen = document.getElementById('screen-calling');
+  if (screen && !screen.classList.contains('hidden')) {
+    if (e.key === 'ArrowRight' || e.key === 'n') { nextContact(); e.preventDefault(); }
+    if (e.key === 'ArrowLeft' || e.key === 'p') { prevContact(); e.preventDefault(); }
+    if (e.key === '1') { setContactStatus('confirmed'); e.preventDefault(); }
+    if (e.key === '2') { setContactStatus('unavailable'); e.preventDefault(); }
+    if (e.key === '3') { setContactStatus('declined'); e.preventDefault(); }
+    if (e.key === '4') { setContactStatus('uncertain'); e.preventDefault(); }
+    if (e.key === 'c' && !e.ctrlKey && !e.metaKey) { copyPhone(); e.preventDefault(); }
+  }
+});
+
+// ========== INIT ==========
+loadFromStorage();
+switchScreen('import');
+</script>
+</body>
+</html>
