@@ -12,8 +12,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install xcodegen
-        run: brew install xcodegen
+      - name: Install xcodegen (2.44.0 for Xcode 15.4)
+        run: |
+          curl -L -o xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.44.0/xcodegen.zip
+          unzip -o -q xcodegen.zip
+          echo "$(pwd)/xcodegen/bin" >> $GITHUB_PATH
 
       - name: Generate Xcode project
         run: xcodegen generate
