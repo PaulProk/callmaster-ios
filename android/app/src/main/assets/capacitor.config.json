@@ -1,0 +1,8 @@
+{
+	"appId": "com.callmaster.event",
+	"appName": "CallMaster Обзвон",
+	"webDir": "www",
+	"server": {
+		"androidScheme": "https"
+	}
+}
